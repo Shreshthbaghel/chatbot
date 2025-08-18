@@ -1,10 +1,11 @@
 {
+  "installCommand": "npx npm@latest install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/"
+      "destination": "/index.html"
     }
   ]
 }
