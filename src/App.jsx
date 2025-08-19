@@ -133,7 +133,7 @@ function App() {
         <ToggleSwitch onToggle={(val) => setIsDark(val)} />
       </div>
 
-      /* Main Content Area */
+
       <div className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto w-full">
         
      
