@@ -21,55 +21,71 @@ function App() {
     }
   }, [Click]);
 
- 
+
   const formatResponse = (text) => {
     if (!text) return text;
-    
-    
+
+
     const paragraphs = text.split('\n\n');
-    
+
     return paragraphs.map((paragraph, index) => {
-   
+
       if (paragraph.includes('```') || paragraph.includes('`')) {
         return (
           <div key={index} className="mb-4">
-            <pre className={`p-4 rounded-lg overflow-x-auto text-sm ${
-              IsDark ? 'bg-[#2D2D2D] text-green-400' : 'bg-gray-100 text-gray-800'
-            }`}>
+            <pre className={`p-4 rounded-lg overflow-x-auto text-sm ${IsDark ? 'bg-[#2D2D2D] text-green-400' : 'bg-gray-100 text-gray-800'
+              }`}>
               <code>{paragraph.replace(/```/g, '').trim()}</code>
             </pre>
           </div>
         );
       }
-      
-     
+
+
       if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
         return (
-          <h3 key={index} className={`text-xl font-bold mb-3 ${
-            IsDark ? 'text-blue-300' : 'text-blue-600'
-          }`}>
+          <h3 key={index} className={`text-xl font-bold mb-3 ${IsDark ? 'text-blue-300' : 'text-blue-600'
+            }`}>
             {paragraph.replace(/\*\*/g, '')}
           </h3>
         );
       }
-      
+
 
       if (paragraph.includes('•') || paragraph.includes('-') || /^\d+\./.test(paragraph.trim())) {
         const lines = paragraph.split('\n');
         return (
           <div key={index} className="mb-4">
             {lines.map((line, lineIndex) => (
-              <div key={lineIndex} className={`mb-2 ${
-                line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim())
+              <div key={lineIndex} className={`mb-2 ${line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim())
                   ? 'ml-4 flex items-start'
                   : ''
-              }`}>
+                }`}>
                 {line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim()) ? (
                   <>
                     <span className={`mr-2 ${IsDark ? 'text-yellow-400' : 'text-blue-500'}`}>
-                      {line.trim().charAt(0)}
+                      {(() => {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                          return trimmedLine.charAt(0);
+                        } else {
+                        
+                          const match = trimmedLine.match(/^\d+\./);
+                          return match ? match[0] : trimmedLine.charAt(0);
+                        }
+                      })()}
                     </span>
-                    <span>{line.trim().substring(1).trim()}</span>
+                    <span>
+                      {(() => {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                          return trimmedLine.substring(1).trim();
+                        } else {
+                          
+                          return trimmedLine.replace(/^\d+\.\s*/, '');
+                        }
+                      })()}
+                    </span>
                   </>
                 ) : (
                   <span>{line}</span>
@@ -79,8 +95,8 @@ function App() {
           </div>
         );
       }
-      
- 
+
+
       return (
         <p key={index} className="mb-4 leading-relaxed">
           {paragraph}
@@ -96,15 +112,15 @@ function App() {
     setTimeout(() => setCopiedText(false), 2000);
   };
 
- 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!Text.trim()) return;
-    
+
     setClick(true);
     setIsLoading(true);
     setResponseText("");
-    
+
     try {
       const output = await runGemini(Text);
       setResponseText(output);
@@ -121,11 +137,11 @@ function App() {
       ${IsDark ? 'bg-[#121212]' : 'bg-[#F5F5F5]'}
     `}>
       <div className='w-full h-[60px] flex justify-between items-center py-3 px-2 md:px-4'>
-        <FontAwesomeIcon 
-          icon={faBars} 
+        <FontAwesomeIcon
+          icon={faBars}
           className={`text-xl md:text-2xl cursor-pointer hover:opacity-70 transition-opacity
             ${IsDark ? 'text-white' : 'text-black'}
-          `} 
+          `}
         />
         <h1 className={`text-lg md:text-xl font-semibold ${IsDark ? 'text-white' : 'text-black'}`}>
           AI Assistant
@@ -135,8 +151,8 @@ function App() {
 
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto w-full">
-        
-     
+
+
         {Click && (
           <div
             ref={responseRef}
@@ -153,8 +169,8 @@ function App() {
                 <button
                   onClick={copyToClipboard}
                   className={`flex items-center gap-2 px-3 py-1 rounded-lg transition-colors text-sm
-                    ${IsDark 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                    ${IsDark
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                     }
                   `}
@@ -168,9 +184,8 @@ function App() {
             <div className={`text-sm md:text-base lg:text-lg ${IsDark ? 'text-gray-100' : 'text-gray-800'}`}>
               {IsLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
-                    IsDark ? 'border-blue-400' : 'border-blue-600'
-                  }`}></div>
+                  <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${IsDark ? 'border-blue-400' : 'border-blue-600'
+                    }`}></div>
                   <span className="ml-3 text-lg">Processing your request...</span>
                 </div>
               ) : ResponseText ? (
@@ -192,7 +207,7 @@ function App() {
           ${Click ? 'mb-8' : 'mb-16'}
         `}>
           <form onSubmit={handleSubmit} className="flex items-center p-2 md:p-3">
-            <input 
+            <input
               type="text"
               placeholder='Ask anything...'
               className={`flex-1 bg-transparent text-base md:text-lg outline-none px-3 py-2 md:py-3
@@ -207,13 +222,13 @@ function App() {
                 type="submit"
                 disabled={IsLoading}
                 className={`p-2 md:p-3 rounded-full transition-all duration-200 hover:scale-105 disabled:opacity-50
-                  ${IsDark 
-                    ? 'text-white hover:bg-gray-600' 
+                  ${IsDark
+                    ? 'text-white hover:bg-gray-600'
                     : 'text-black hover:bg-gray-400'
                   }
                 `}
               >
-                <FontAwesomeIcon 
+                <FontAwesomeIcon
                   icon={faArrowRight}
                   className={`text-lg md:text-xl ${IsLoading ? 'animate-pulse' : ''}`}
                 />
