@@ -1,12 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
-  // Enable CORS
+  
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing message" });
     }
 
-    // Check if API key exists
+
     if (!process.env.GEMINI_API_KEY) {
       console.error("GEMINI_API_KEY is not configured!");
       return res.status(500).json({ 
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
-    // Try multiple model names in order of preference
+    
     const modelNames = [
       "gemini-1.5-flash-latest",
       "gemini-1.5-pro-latest", 
@@ -45,23 +45,22 @@ export default async function handler(req, res) {
     
     let result;
     let lastError;
-    
-    // Try each model until one works
-    for (const modelName of modelNames) {
+  
+  for (const modelName of modelNames) {
       try {
         console.log(`Trying model: ${modelName}`);
         const model = genAI.getGenerativeModel({ model: modelName });
         result = await model.generateContent(message);
         console.log(`Success with model: ${modelName}`);
-        break; // Success! Exit the loop
+        break; 
       } catch (error) {
         console.log(`Model ${modelName} failed:`, error.message);
         lastError = error;
-        // Continue to next model
+        
       }
     }
     
-    // If no model worked, return the last error
+    
     if (!result) {
       throw lastError || new Error("All models failed");
     }
