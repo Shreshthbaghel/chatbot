@@ -32,12 +32,45 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Try multiple model names in order of preference
+    const modelNames = [
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-pro-latest", 
+      "gemini-1.5-flash",
+      "gemini-pro",
+      "gemini-1.5-flash-002",
+      "models/gemini-1.5-flash"
+    ];
+    
+    let result;
+    let lastError;
+    
+    // Try each model until one works
+    for (const modelName of modelNames) {
+      try {
+        console.log(`Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        result = await model.generateContent(message);
+        console.log(`Success with model: ${modelName}`);
+        break; // Success! Exit the loop
+      } catch (error) {
+        console.log(`Model ${modelName} failed:`, error.message);
+        lastError = error;
+        // Continue to next model
+      }
+    }
+    
+    // If no model worked, return the last error
+    if (!result) {
+      throw lastError || new Error("All models failed");
+    }
 
-    const result = await model.generateContent(message);
-    const text = result?.response?.text?.() ?? "";
+    const response = await result.response;
+    const text = response.text();
 
     return res.status(200).json({ text });
+    
   } catch (error) {
     console.error("Error from Gemini:", error);
     
@@ -45,13 +78,21 @@ export default async function handler(req, res) {
     
     if (errorMessage.includes("API_KEY_INVALID") || errorMessage.includes("API key")) {
       return res.status(401).json({ 
-        error: "Invalid API key" 
+        error: "Invalid API key. Please generate a new key at https://aistudio.google.com" 
       });
     }
     
     if (errorMessage.includes("quota") || errorMessage.includes("429")) {
       return res.status(429).json({ 
         error: "API quota exceeded. Please try again later." 
+      });
+    }
+
+    if (errorMessage.includes("not found") || errorMessage.includes("404")) {
+      return res.status(500).json({ 
+        error: "No available Gemini models found. Please check your API key has access to Gemini models.",
+        details: errorMessage,
+        help: "Visit https://aistudio.google.com/app/apikey to check your API key"
       });
     }
 
