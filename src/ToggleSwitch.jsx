@@ -5,7 +5,7 @@ export default function ToggleSwitch({ onToggle }) {
 
   const toggle = () => {
     setIsOn(!isOn);
-    if (onToggle) onToggle(!isOn); // for dark mode toggle if needed
+    if (onToggle) onToggle(!isOn); 
   };
 
   return (
