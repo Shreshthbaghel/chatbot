@@ -15,7 +15,6 @@ function App() {
   const [CopiedIndex, setCopiedIndex] = useState(null);
   const [HoveredIndex, setHoveredIndex] = useState(null);
 
-  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -39,60 +38,73 @@ function App() {
         );
       }
 
-      if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
+      if (paragraph.trim().startsWith('#')) {
+        const cleanedHeading = paragraph.replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
         return (
           <h3 key={index} className={`text-xl font-bold mb-3 ${IsDark ? 'text-blue-300' : 'text-blue-600'
             }`}>
-            {paragraph.replace(/\*\*/g, '')}
+            {cleanedHeading}
           </h3>
         );
       }
 
-      if (paragraph.includes('•') || paragraph.includes('-') || /^\d+\./.test(paragraph.trim())) {
+      if (paragraph.trim().match(/^(-{3,}|_{3,})$/)) {
+        return (
+          <hr key={index} className={`my-4 border-t ${IsDark ? 'border-gray-600' : 'border-gray-300'}`} />
+        );
+      }
+
+      if (paragraph.includes('•') || paragraph.includes('*') || /^\d+\./.test(paragraph.trim())) {
         const lines = paragraph.split('\n');
         return (
           <div key={index} className="mb-4">
-            {lines.map((line, lineIndex) => (
-              <div key={lineIndex} className={`mb-2 ${line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim())
-                ? 'ml-4 flex items-start'
-                : ''
-                }`}>
-                {line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim()) ? (
-                  <>
+            {lines.map((line, lineIndex) => {
+              const trimmedLine = line.trim();
+              
+              const isBullet = trimmedLine.startsWith('•') || trimmedLine.startsWith('*') || trimmedLine.startsWith('-');
+              const isNumbered = /^\d+\./.test(trimmedLine);
+              
+              if (isBullet || isNumbered) {
+                let marker, content;
+                if (isBullet) {
+                  marker = '•';
+                  content = trimmedLine.substring(1).trim();
+                  content = content.replace(/\*\*/g, '');
+                } else {
+                  const match = trimmedLine.match(/^(\d+\.)/);
+                  marker = match ? match[0] : '';
+                  content = trimmedLine.replace(/^\d+\.\s*/, '');
+                  content = content.replace(/\*\*/g, '');
+                }
+                
+                return (
+                  <div key={lineIndex} className="mb-2 ml-4 flex items-start">
                     <span className={`mr-2 ${IsDark ? 'text-yellow-400' : 'text-blue-500'}`}>
-                      {(() => {
-                        const trimmedLine = line.trim();
-                        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
-                          return trimmedLine.charAt(0);
-                        } else {
-                          const match = trimmedLine.match(/^\d+\./);
-                          return match ? match[0] : trimmedLine.charAt(0);
-                        }
-                      })()}
+                      {marker}
                     </span>
-                    <span>
-                      {(() => {
-                        const trimmedLine = line.trim();
-                        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
-                          return trimmedLine.substring(1).trim();
-                        } else {
-                          return trimmedLine.replace(/^\d+\.\s*/, '');
-                        }
-                      })()}
-                    </span>
-                  </>
-                ) : (
-                  <span>{line}</span>
-                )}
-              </div>
-            ))}
+                    <span>{content}</span>
+                  </div>
+                );
+              }
+              
+              return (
+                <div key={lineIndex} className="mb-2">
+                  <span>{line.replace(/\*\*/g, '').replace(/__|_/g, '')}</span>
+                </div>
+              );
+            })}
           </div>
         );
       }
 
+      const cleanedParagraph = paragraph
+        .replace(/\*\*/g, '')  
+        .replace(/__|_/g, '')   
+        .replace(/~~(.*?)~~/g, '$1'); 
+
       return (
         <p key={index} className="mb-4 leading-relaxed">
-          {paragraph}
+          {cleanedParagraph}
         </p>
       );
     });
