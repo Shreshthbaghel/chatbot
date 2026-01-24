@@ -1,12 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
-  
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -18,86 +18,67 @@ export default async function handler(req, res) {
 
   try {
     const { message } = req.body ?? {};
-    
+
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Missing message" });
     }
 
-
     if (!process.env.GEMINI_API_KEY) {
       console.error("GEMINI_API_KEY is not configured!");
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: "API key not configured on server"
       });
     }
 
+    console.log("Initializing Gemini API...");
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    
-    const modelNames = [
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-pro-latest", 
-      "gemini-1.5-flash",
-      "gemini-pro",
-      "gemini-1.5-flash-002",
-      "models/gemini-1.5-flash"
-    ];
-    
-    let result;
-    let lastError;
-  
-  for (const modelName of modelNames) {
-      try {
-        console.log(`Trying model: ${modelName}`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        result = await model.generateContent(message);
-        console.log(`Success with model: ${modelName}`);
-        break; 
-      } catch (error) {
-        console.log(`Model ${modelName} failed:`, error.message);
-        lastError = error;
-        
-      }
-    }
-    
-    
-    if (!result) {
-      throw lastError || new Error("All models failed");
-    }
 
+    console.log("Using model: gemini-2.5-flash");
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash"
+    });
+
+    console.log("Generating content...");
+    const result = await model.generateContent(message);
     const response = await result.response;
     const text = response.text();
 
+    console.log("Success! Response generated.");
     return res.status(200).json({ text });
-    
+
   } catch (error) {
-    console.error("Error from Gemini:", error);
-    
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    console.error("Error message:", error.message);
+    console.error("Error status:", error.status);
+
     const errorMessage = error.message || "Unknown error";
-    
-    if (errorMessage.includes("API_KEY_INVALID") || errorMessage.includes("API key")) {
-      return res.status(401).json({ 
-        error: "Invalid API key. Please generate a new key at https://aistudio.google.com" 
-      });
-    }
-    
-    if (errorMessage.includes("quota") || errorMessage.includes("429")) {
-      return res.status(429).json({ 
-        error: "API quota exceeded. Please try again later." 
+
+
+    if (error.status === 400 && errorMessage.includes("API_KEY_INVALID")) {
+      return res.status(401).json({
+        error: "Invalid API key. Please check your API key at https://aistudio.google.com"
       });
     }
 
-    if (errorMessage.includes("not found") || errorMessage.includes("404")) {
-      return res.status(500).json({ 
-        error: "No available Gemini models found. Please check your API key has access to Gemini models.",
-        details: errorMessage,
-        help: "Visit https://aistudio.google.com/app/apikey to check your API key"
+    if (error.status === 429 || errorMessage.includes("quota")) {
+      return res.status(429).json({
+        error: "API quota exceeded. Please try again later."
       });
     }
 
-    return res.status(500).json({ 
+
+    if (error.status === 404 || errorMessage.includes("not found")) {
+      return res.status(500).json({
+        error: "The Gemini model is not available with your API key.",
+        suggestion: "Try generating a new API key at https://aistudio.google.com/app/apikey and make sure to select 'Create API key in new project'",
+        details: errorMessage
+      });
+    }
+
+    return res.status(500).json({
       error: "Failed to connect to Gemini API",
-      details: errorMessage
+      details: errorMessage,
+      status: error.status || 500
     });
   }
 }

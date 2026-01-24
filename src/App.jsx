@@ -7,29 +7,27 @@ import { runGemini } from './api';
 import './App.css'
 
 function App() {
-  const responseRef = useRef(null);
+  const chatContainerRef = useRef(null);
   const [IsDark, setIsDark] = useState(false);
   const [Text, setText] = useState('');
-  const [Click, setClick] = useState(false);
-  const [ResponseText, setResponseText] = useState("");
+  const [chatHistory, setChatHistory] = useState([]);
   const [IsLoading, setIsLoading] = useState(false);
-  const [CopiedText, setCopiedText] = useState(false);
+  const [CopiedIndex, setCopiedIndex] = useState(null);
+  const [HoveredIndex, setHoveredIndex] = useState(null);
 
+  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
-    if (Click && responseRef.current) {
-      responseRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [Click]);
-
+  }, [chatHistory, IsLoading]);
 
   const formatResponse = (text) => {
     if (!text) return text;
 
-
     const paragraphs = text.split('\n\n');
 
     return paragraphs.map((paragraph, index) => {
-
       if (paragraph.includes('```') || paragraph.includes('`')) {
         return (
           <div key={index} className="mb-4">
@@ -41,7 +39,6 @@ function App() {
         );
       }
 
-
       if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
         return (
           <h3 key={index} className={`text-xl font-bold mb-3 ${IsDark ? 'text-blue-300' : 'text-blue-600'
@@ -51,15 +48,14 @@ function App() {
         );
       }
 
-
       if (paragraph.includes('•') || paragraph.includes('-') || /^\d+\./.test(paragraph.trim())) {
         const lines = paragraph.split('\n');
         return (
           <div key={index} className="mb-4">
             {lines.map((line, lineIndex) => (
               <div key={lineIndex} className={`mb-2 ${line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim())
-                  ? 'ml-4 flex items-start'
-                  : ''
+                ? 'ml-4 flex items-start'
+                : ''
                 }`}>
                 {line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim()) ? (
                   <>
@@ -69,7 +65,6 @@ function App() {
                         if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
                           return trimmedLine.charAt(0);
                         } else {
-                        
                           const match = trimmedLine.match(/^\d+\./);
                           return match ? match[0] : trimmedLine.charAt(0);
                         }
@@ -81,7 +76,6 @@ function App() {
                         if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
                           return trimmedLine.substring(1).trim();
                         } else {
-                          
                           return trimmedLine.replace(/^\d+\.\s*/, '');
                         }
                       })()}
@@ -96,7 +90,6 @@ function App() {
         );
       }
 
-
       return (
         <p key={index} className="mb-4 leading-relaxed">
           {paragraph}
@@ -105,38 +98,45 @@ function App() {
     });
   };
 
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(ResponseText);
-    setCopiedText(true);
-    setTimeout(() => setCopiedText(false), 2000);
+  const copyToClipboard = (text, index) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!Text.trim()) return;
 
-    setClick(true);
+    const userMessage = Text.trim();
+    setText("");
+
+    // Add user message to chat history
+    setChatHistory(prev => [...prev, { type: 'user', text: userMessage, timestamp: new Date() }]);
+
     setIsLoading(true);
-    setResponseText("");
 
     try {
-      const output = await runGemini(Text);
-      setResponseText(output);
+      const output = await runGemini(userMessage);
+      // Add AI response to chat history
+      setChatHistory(prev => [...prev, { type: 'ai', text: output, timestamp: new Date() }]);
     } catch (error) {
-      setResponseText("Sorry, there was an error processing your request. Please try again.");
+      setChatHistory(prev => [...prev, {
+        type: 'ai',
+        text: "Sorry, there was an error processing your request. Please try again.",
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
-      setText("");
     }
   };
 
   return (
-    <div className={`min-h-screen w-full flex flex-col transition-all duration-500 ease-in-out px-4 md:px-6 lg:px-8
+    <div className={`min-h-screen w-full flex flex-col transition-all duration-500 ease-in-out
       ${IsDark ? 'bg-[#121212]' : 'bg-[#F5F5F5]'}
     `}>
-      <div className='w-full h-[60px] flex justify-between items-center py-3 px-2 md:px-4'>
+      {/* Header */}
+      <div className='w-full h-[60px] flex justify-between items-center py-3 px-4 md:px-6 border-b border-opacity-20 border-gray-500'>
         <FontAwesomeIcon
           icon={faBars}
           className={`text-xl md:text-2xl cursor-pointer hover:opacity-70 transition-opacity
@@ -149,105 +149,143 @@ function App() {
         <ToggleSwitch onToggle={(val) => setIsDark(val)} />
       </div>
 
-
-      <div className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto w-full">
-
-
-        {Click && (
-          <div
-            ref={responseRef}
-            className={`w-full max-w-4xl min-h-[300px] md:min-h-[400px] lg:min-h-[500px] 
-              rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 mb-6 transition-all duration-500 ease-in-out
-              ${IsDark ? 'bg-[#1E1E1E] shadow-2xl' : 'bg-white shadow-xl'}
-            `}
-          >
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-opacity-20 border-gray-500">
-              <h2 className={`text-lg md:text-xl font-semibold ${IsDark ? 'text-blue-300' : 'text-blue-600'}`}>
-                AI Response
+      {/* Chat Container */}
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto px-4 md:px-6 py-6"
+      >
+        <div className="max-w-4xl mx-auto">
+          {chatHistory.length === 0 ? (
+            <div className={`text-center mt-20 ${IsDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Welcome to AI Assistant
               </h2>
-              {ResponseText && !IsLoading && (
+              <p className="text-lg opacity-80">
+                Ask me anything! I can help with coding, writing, explanations, and much more.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {chatHistory.map((message, index) => (
+                <div key={index}>
+                  {message.type === 'user' ? (
+                    // User Message - Right aligned
+                    <div className="flex justify-end mb-4">
+                      <div className={`max-w-[80%] rounded-2xl px-5 py-3 ${IsDark
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-blue-500 text-white'
+                        }`}>
+                        <p className="text-base md:text-lg leading-relaxed">{message.text}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    // AI Message - Full width with box
+                    <div 
+                      className="w-full mb-4"
+                      onMouseEnter={() => setHoveredIndex(index)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    >
+                      {/* Show "AI Assistant" label only for first AI message or after user message */}
+                      {/* {(index === 0 || chatHistory[index - 1]?.type === 'user') && (
+                        <div className={`text-sm font-semibold mb-2 ${IsDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                          AI Assistant
+                        </div>
+                      )} */}
+                      
+                      {/* Response Box */}
+                      <div className={`relative inline-block max-w-[95%] min-w-[300px] rounded-xl px-6 py-4 transition-all ${IsDark
+                        ? 'bg-[#1E1E1E]'
+                        : 'bg-white'
+                        }`}>
+                        {/* Copy button - shows on hover */}
+                        {HoveredIndex === index && (
+                          <button
+                            onClick={() => copyToClipboard(message.text, index)}
+                            className={`absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${IsDark
+                              ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                              }`}
+                          >
+                            <FontAwesomeIcon 
+                              icon={CopiedIndex === index ? faCheck : faCopy} 
+                              className="text-xs" 
+                            />
+                            <span className="text-xs">{CopiedIndex === index ? 'Copied!' : 'Copy'}</span>
+                          </button>
+                        )}
+                        
+                        {/* Response Content */}
+                        <div className={`text-sm md:text-base pr-20 ${IsDark ? 'text-gray-100' : 'text-gray-800'}`}>
+                          {formatResponse(message.text)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Loading Indicator */}
+              {IsLoading && (
+                <div className="w-full">
+                  <div className={`text-sm font-semibold mb-2 ${IsDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                    AI Assistant
+                  </div>
+                  <div className={`w-full rounded-xl px-6 py-4 ${IsDark
+                    ? 'bg-[#1E1E1E]'
+                    : 'bg-white'
+                    }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`animate-spin rounded-full h-5 w-5 border-b-2 ${IsDark ? 'border-blue-400' : 'border-blue-600'
+                        }`}></div>
+                      <span className={`text-sm ${IsDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Thinking...
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Input Container - Fixed at bottom */}
+      <div className={`w-full px-4 md:px-6 py-4`}>
+        <div className="max-w-4xl mx-auto">
+          <div className={`w-full rounded-2xl md:rounded-3xl transition-all duration-500 ease-in-out
+            ${IsDark ? 'bg-[#444444]' : 'bg-[#D9D9D9]'}
+          `}>
+            <form onSubmit={handleSubmit} className="flex items-center p-2 md:p-3">
+              <input
+                type="text"
+                placeholder='Ask anything...'
+                className={`flex-1 bg-transparent text-base md:text-lg outline-none px-3 py-2 md:py-3
+                  ${IsDark ? 'text-white placeholder-gray-300' : 'text-black placeholder-gray-600'}
+                `}
+                value={Text}
+                onChange={(e) => setText(e.target.value)}
+                disabled={IsLoading}
+              />
+              {Text.trim() && (
                 <button
-                  onClick={copyToClipboard}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-lg transition-colors text-sm
+                  type="submit"
+                  disabled={IsLoading}
+                  className={`p-2 md:p-3 rounded-full transition-all duration-200 hover:scale-105 disabled:opacity-50
                     ${IsDark
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      ? 'text-white hover:bg-gray-600'
+                      : 'text-black hover:bg-gray-400'
                     }
                   `}
                 >
-                  <FontAwesomeIcon icon={CopiedText ? faCheck : faCopy} />
-                  {CopiedText ? 'Copied!' : 'Copy'}
+                  <FontAwesomeIcon
+                    icon={faArrowRight}
+                    className={`text-lg md:text-xl ${IsLoading ? 'animate-pulse' : ''}`}
+                  />
                 </button>
               )}
-            </div>
-
-            <div className={`text-sm md:text-base lg:text-lg ${IsDark ? 'text-gray-100' : 'text-gray-800'}`}>
-              {IsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${IsDark ? 'border-blue-400' : 'border-blue-600'
-                    }`}></div>
-                  <span className="ml-3 text-lg">Processing your request...</span>
-                </div>
-              ) : ResponseText ? (
-                <div className="response-content">
-                  {formatResponse(ResponseText)}
-                </div>
-              ) : (
-                <p className="text-center py-8 opacity-70">
-                  Waiting for response...
-                </p>
-              )}
-            </div>
+            </form>
           </div>
-        )}
-
-
-        <div className={`w-full max-w-4xl rounded-2xl md:rounded-3xl transition-all duration-500 ease-in-out
-          ${IsDark ? 'bg-[#444444]' : 'bg-[#D9D9D9]'}
-          ${Click ? 'mb-8' : 'mb-16'}
-        `}>
-          <form onSubmit={handleSubmit} className="flex items-center p-2 md:p-3">
-            <input
-              type="text"
-              placeholder='Ask anything...'
-              className={`flex-1 bg-transparent text-base md:text-lg outline-none px-3 py-2 md:py-3
-                ${IsDark ? 'text-white placeholder-gray-300' : 'text-black placeholder-gray-600'}
-              `}
-              value={Text}
-              onChange={(e) => setText(e.target.value)}
-              disabled={IsLoading}
-            />
-            {Text.trim() && (
-              <button
-                type="submit"
-                disabled={IsLoading}
-                className={`p-2 md:p-3 rounded-full transition-all duration-200 hover:scale-105 disabled:opacity-50
-                  ${IsDark
-                    ? 'text-white hover:bg-gray-600'
-                    : 'text-black hover:bg-gray-400'
-                  }
-                `}
-              >
-                <FontAwesomeIcon
-                  icon={faArrowRight}
-                  className={`text-lg md:text-xl ${IsLoading ? 'animate-pulse' : ''}`}
-                />
-              </button>
-            )}
-          </form>
         </div>
-
-
-        {!Click && (
-          <div className={`text-center max-w-2xl mx-auto mb-8 ${IsDark ? 'text-gray-300' : 'text-gray-600'}`}>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-              Welcome to AI Assistant
-            </h2>
-            <p className="text-base md:text-lg opacity-80">
-              Ask me anything! I can help with coding, writing, explanations, and much more.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

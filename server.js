@@ -26,7 +26,7 @@ app.post('/api/chat', async (req, res) => {
     if (!message) return res.status(400).json({ error: "Missing message" });
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent(message);
     const text = result?.response?.text?.() ?? "";
